@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora de Filamento</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<style>
+  @font-face {
+    font-family: 'Spline Sans Mono';
+    src: local('Consolas'), local('Menlo'), local('monospace');
+  }
+
+  :root {
+    --bg: #f2efe9;
+    --surface: #ffffff;
+    --sunken: #ece7dc;
+    --ink: #26231d;
+    --ink-soft: #6b6558;
+    --line: #e0dbcf;
+    --accent: #d95d39;
+    --accent-soft: #f7e3da;
+    --good: #3f7d5c;
+    --good-soft: #e2efe7;
+    --bad: #b23a3a;
+    --bad-soft: #f8e2e2;
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1a16;
+      --surface: #26231d;
+      --sunken: #211e18;
+      --ink: #f0ece2;
+      --ink-soft: #a89f8c;
+      --line: #3a362c;
+      --accent: #ef7a52;
+      --accent-soft: #3a2a22;
+      --good: #6cbf94;
+      --good-soft: #223229;
+      --bad: #e17575;
+      --bad-soft: #3a2323;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1c1a16;
+    --surface: #26231d;
+    --sunken: #211e18;
+    --ink: #f0ece2;
+    --ink-soft: #a89f8c;
+    --line: #3a362c;
+    --accent: #ef7a52;
+    --accent-soft: #3a2a22;
+    --good: #6cbf94;
+    --good-soft: #223229;
+    --bad: #e17575;
+    --bad-soft: #3a2323;
+  }
+  :root[data-theme="light"] {
+    --bg: #f2efe9;
+    --surface: #ffffff;
+    --sunken: #ece7dc;
+    --ink: #26231d;
+    --ink-soft: #6b6558;
+    --line: #e0dbcf;
+    --accent: #d95d39;
+    --accent-soft: #f7e3da;
+    --good: #3f7d5c;
+    --good-soft: #e2efe7;
+    --bad: #b23a3a;
+    --bad-soft: #f8e2e2;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 28px 16px 48px;
+  }
+
+  main {
+    width: 100%;
+    max-width: 460px;
+  }
+
+  header {
+    margin-bottom: 20px;
+  }
+
+  .eyebrow {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  h1 {
+    font-size: 24px;
+    line-height: 1.15;
+    margin: 6px 0 4px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    background: var(--sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 16px;
+    position: sticky;
+    top: 12px;
+    z-index: 10;
+  }
+
+  .tab-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    padding: 10px 8px;
+    min-height: 44px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .tab-btn[aria-selected="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+
+  .tab-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .card + .card {
+    margin-top: 16px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 14px;
+  }
+
+  .card-hint {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: -8px 0 16px;
+    line-height: 1.4;
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+
+  .field:last-child {
+    margin-bottom: 0;
+  }
+
+  label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  label .optional {
+    font-weight: 400;
+    color: var(--ink-soft);
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-wrap .prefix,
+  .input-wrap .suffix {
+    position: absolute;
+    color: var(--ink-soft);
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+
+  .input-wrap .prefix { left: 14px; }
+  .input-wrap .suffix { right: 14px; }
+
+  input[type="number"] {
+    width: 100%;
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Spline Sans Mono', monospace;
+    padding: 12px 14px;
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--ink);
+    transition: border-color 0.15s ease;
+  }
+
+  .input-wrap .prefix ~ input { padding-left: 32px; }
+  .input-wrap .suffix ~ input,
+  .input-wrap input:has(~ .suffix) {
+    padding-right: 46px;
+  }
+
+  input[type="number"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px dashed var(--line);
+    margin: 18px 0;
+  }
+
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 5px 0;
+    gap: 12px;
+  }
+
+  .result-row .k {
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .result-row .v {
+    font-family: 'Spline Sans Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 14.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .result-row.total {
+    padding-top: 12px;
+    margin-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+
+  .result-row.total .k {
+    font-size: 14px;
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .result-row.total .v {
+    font-size: 21px;
+    color: var(--accent);
+  }
+
+  .profit-card {
+    margin-top: 16px;
+    padding: 18px 22px;
+    border-radius: var(--radius);
+    display: none;
+  }
+
+  .profit-card.show { display: block; }
+
+  .profit-card .k {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin: 0 0 8px;
+  }
+
+  .profit-card .pct {
+    font-family: 'Spline Sans Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .profit-card .pct .unit {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .profit-card .sub {
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  .profit-card.positive {
+    background: var(--good-soft);
+    color: var(--good);
+  }
+  .profit-card.positive .sub { color: var(--good); opacity: 0.85; }
+
+  .profit-card.negative {
+    background: var(--bad-soft);
+    color: var(--bad);
+  }
+  .profit-card.negative .sub { color: var(--bad); opacity: 0.85; }
+
+  .save-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    min-height: 16px;
+  }
+
+  .save-note .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--good);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .save-note.show .dot { opacity: 1; }
+
+  footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Impressão 3D</div>
+    <h1>Calculadora de Filamento</h1>
+    <p>Custo da peça e margem de lucro, considerando filamento, energia, falhas e retorno da impressora.</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab-btn" id="tab-calc" role="tab" aria-selected="true" aria-controls="panel-calc">Calculadora</button>
+    <button class="tab-btn" id="tab-config" role="tab" aria-selected="false" aria-controls="panel-config">Configurações</button>
+  </div>
+
+  <!-- CALCULADORA -->
+  <section class="panel active" id="panel-calc" role="tabpanel" aria-labelledby="tab-calc">
+    <div class="card">
+      <div class="field">
+        <label for="preco-kg">Preço do filamento <span class="optional">por kg</span></label>
+        <div class="input-wrap">
+          <span class="prefix">R$</span>
+          <input type="number" id="preco-kg" inputmode="decimal" step="0.01" min="0" placeholder="120,00">
+        </div>
+      </div>
+      <div class="field">
+        <label for="gramas">Peso da peça <span class="optional">gramas usadas</span></label>
+        <div class="input-wrap">
+          <input type="number" id="gramas" inputmode="decimal" step="0.1" min="0" placeholder="35">
+          <span class="suffix">g</span>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom: 0;">
+        <label for="horas">Tempo de impressão <span class="optional">opcional</span></label>
+        <div class="input-wrap">
+          <input type="number" id="horas" inputmode="decimal" step="0.1" min="0" placeholder="ex: 3,5">
+          <span class="suffix">h</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field" style="margin-bottom: 0;">
+        <label for="preco-venda">Preço de venda <span class="optional">opcional</span></label>
+        <div class="input-wrap">
+          <span class="prefix">R$</span>
+          <input type="number" id="preco-venda" inputmode="decimal" step="0.01" min="0" placeholder="ex: 45,00">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Composição do custo</p>
+      <div class="result-row">
+        <span class="k">Filamento</span>
+        <span class="v" id="r-filamento">R$ 0,00</span>
+      </div>
+      <div class="result-row" id="row-energia" style="display:none;">
+        <span class="k">Energia</span>
+        <span class="v" id="r-energia">R$ 0,00</span>
+      </div>
+      <div class="result-row" id="row-falha" style="display:none;">
+        <span class="k" id="k-falha">Ajuste por falhas</span>
+        <span class="v" id="r-falha">R$ 0,00</span>
+      </div>
+      <div class="result-row" id="row-roi" style="display:none;">
+        <span class="k" id="k-roi">Retorno da impressora</span>
+        <span class="v" id="r-roi">R$ 0,00</span>
+      </div>
+      <div class="result-row total">
+        <span class="k">Custo total da peça</span>
+        <span class="v" id="r-total">R$ 0,00</span>
+      </div>
+    </div>
+
+    <div class="profit-card" id="profit-card">
+      <p class="k" id="profit-label">Margem de lucro</p>
+      <div class="pct" id="profit-pct">—<span class="unit">%</span></div>
+      <p class="sub" id="profit-sub"></p>
+    </div>
+  </section>
+
+  <!-- CONFIGURAÇÕES -->
+  <section class="panel" id="panel-config" role="tabpanel" aria-labelledby="tab-config">
+    <div class="card">
+      <p class="card-title">Energia</p>
+      <p class="card-hint">Preenchida uma vez — usada sempre que você informar o tempo de impressão.</p>
+      <div class="field">
+        <label for="potencia">Potência da impressora</label>
+        <div class="input-wrap">
+          <input type="number" id="potencia" inputmode="decimal" step="1" min="0" placeholder="150">
+          <span class="suffix">W</span>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom: 0;">
+        <label for="tarifa">Tarifa de energia</label>
+        <div class="input-wrap">
+          <span class="prefix">R$</span>
+          <input type="number" id="tarifa" inputmode="decimal" step="0.01" min="0" placeholder="0,75">
+          <span class="suffix">/kWh</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Risco de falha</p>
+      <p class="card-hint">Dilui o custo de peças perdidas nas peças que dão certo. Ex: 10% de falha aumenta o custo em ~11%.</p>
+      <div class="field" style="margin-bottom: 0;">
+        <label for="falha">Taxa de falha estimada</label>
+        <div class="input-wrap">
+          <input type="number" id="falha" inputmode="decimal" step="1" min="0" max="95" placeholder="10">
+          <span class="suffix">%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Retorno da impressora</p>
+      <p class="card-hint">Acrescenta um percentual sobre o custo final para ajudar a pagar o investimento na máquina.</p>
+      <div class="field" style="margin-bottom: 0;">
+        <label for="roi">Acréscimo para ROI</label>
+        <div class="input-wrap">
+          <input type="number" id="roi" inputmode="decimal" step="1" min="0" placeholder="10">
+          <span class="suffix">%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="save-note" id="save-note">
+      <span class="dot"></span>
+      <span id="save-note-text">Salvo automaticamente neste dispositivo</span>
+    </div>
+  </section>
+
+  <footer>Configurações de energia, falha e ROI ficam salvas no seu navegador e são aplicadas em todos os cálculos futuros.</footer>
+</main>
+
+<script>
+  const STORAGE_KEY = 'calc-filamento-v1';
+
+  const els = {
+    precoKg: document.getElementById('preco-kg'),
+    gramas: document.getElementById('gramas'),
+    horas: document.getElementById('horas'),
+    precoVenda: document.getElementById('preco-venda'),
+    potencia: document.getElementById('potencia'),
+    tarifa: document.getElementById('tarifa'),
+    falha: document.getElementById('falha'),
+    roi: document.getElementById('roi'),
+  };
+
+  const configKeys = ['potencia', 'tarifa', 'falha', 'roi'];
+  const allKeys = Object.keys(els);
+
+  // --- Tabs ---
+  const tabCalc = document.getElementById('tab-calc');
+  const tabConfig = document.getElementById('tab-config');
+  const panelCalc = document.getElementById('panel-calc');
+  const panelConfig = document.getElementById('panel-config');
+
+  function selectTab(tab) {
+    const calcActive = tab === 'calc';
+    tabCalc.setAttribute('aria-selected', String(calcActive));
+    tabConfig.setAttribute('aria-selected', String(!calcActive));
+    panelCalc.classList.toggle('active', calcActive);
+    panelConfig.classList.toggle('active', !calcActive);
+  }
+
+  tabCalc.addEventListener('click', () => selectTab('calc'));
+  tabConfig.addEventListener('click', () => selectTab('config'));
+
+  // --- Persistence ---
+  function loadStored() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      allKeys.forEach(k => {
+        if (data[k] !== undefined && data[k] !== null && data[k] !== '') {
+          els[k].value = data[k];
+        }
+      });
+    } catch (e) { /* ignore corrupted storage */ }
+  }
+
+  let saveTimeout;
+  function persist() {
+    const data = {};
+    allKeys.forEach(k => { data[k] = els[k].value; });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    const note = document.getElementById('save-note');
+    note.classList.add('show');
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => note.classList.remove('show'), 1500);
+  }
+
+  // --- Calculation ---
+  const brl = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  function calcular() {
+    const precoKg = parseFloat(els.precoKg.value) || 0;
+    const gramas = parseFloat(els.gramas.value) || 0;
+    const horas = parseFloat(els.horas.value) || 0;
+    const precoVenda = parseFloat(els.precoVenda.value);
+
+    const potenciaKw = (parseFloat(els.potencia.value) || 0) / 1000;
+    const tarifa = parseFloat(els.tarifa.value) || 0;
+    const falhaPct = Math.min(parseFloat(els.falha.value) || 0, 95);
+    const roiPct = parseFloat(els.roi.value) || 0;
+
+    const custoFilamento = (precoKg / 1000) * gramas;
+    const custoEnergia = potenciaKw * horas * tarifa;
+    const subtotal = custoFilamento + custoEnergia;
+
+    const custoComFalha = falhaPct > 0 ? subtotal / (1 - falhaPct / 100) : subtotal;
+    const ajusteFalha = custoComFalha - subtotal;
+
+    const custoComRoi = custoComFalha * (1 + roiPct / 100);
+    const ajusteRoi = custoComRoi - custoComFalha;
+
+    const custoFinal = custoComRoi;
+
+    document.getElementById('r-filamento').textContent = brl(custoFilamento);
+    document.getElementById('r-total').textContent = brl(custoFinal);
+
+    const rowEnergia = document.getElementById('row-energia');
+    if (custoEnergia > 0) {
+      rowEnergia.style.display = 'flex';
+      document.getElementById('r-energia').textContent = brl(custoEnergia);
+    } else {
+      rowEnergia.style.display = 'none';
+    }
+
+    const rowFalha = document.getElementById('row-falha');
+    if (ajusteFalha > 0) {
+      rowFalha.style.display = 'flex';
+      document.getElementById('k-falha').textContent = `Ajuste por falhas (${falhaPct}%)`;
+      document.getElementById('r-falha').textContent = '+ ' + brl(ajusteFalha);
+    } else {
+      rowFalha.style.display = 'none';
+    }
+
+    const rowRoi = document.getElementById('row-roi');
+    if (ajusteRoi > 0) {
+      rowRoi.style.display = 'flex';
+      document.getElementById('k-roi').textContent = `Retorno da impressora (${roiPct}%)`;
+      document.getElementById('r-roi').textContent = '+ ' + brl(ajusteRoi);
+    } else {
+      rowRoi.style.display = 'none';
+    }
+
+    const profitCard = document.getElementById('profit-card');
+    const profitLabel = document.getElementById('profit-label');
+    const profitPct = document.getElementById('profit-pct');
+    const profitSub = document.getElementById('profit-sub');
+
+    if (!isNaN(precoVenda) && els.precoVenda.value !== '' && custoFinal > 0) {
+      const lucro = precoVenda - custoFinal;
+      const margem = (lucro / custoFinal) * 100;
+
+      profitCard.classList.add('show');
+      profitCard.classList.toggle('positive', lucro >= 0);
+      profitCard.classList.toggle('negative', lucro < 0);
+
+      profitLabel.textContent = lucro >= 0 ? 'Margem de lucro' : 'Prejuízo';
+      profitPct.innerHTML = `${margem >= 0 ? '+' : ''}${margem.toFixed(1)}<span class="unit">%</span>`;
+      profitSub.textContent = `Lucro de ${brl(lucro)} sobre o custo total da peça`;
+    } else {
+      profitCard.classList.remove('show');
+    }
+  }
+
+  allKeys.forEach(k => {
+    els[k].addEventListener('input', () => {
+      calcular();
+      persist();
+    });
+  });
+
+  loadStored();
+  calcular();
+</script>
+</body>
+</html>
