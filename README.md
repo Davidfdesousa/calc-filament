@@ -34,6 +34,9 @@ avançadas (energia, taxa de falha, ROI) persistidas por usuário no Firestore.
   `scripts/promote-to-main.sh` (o script faz o merge numa branch temporária, resolve os
   conflitos esperados em `CHANGELOG.md`/`package.json` e abre o PR pronto pra revisar). É o
   ambiente de **produção**.
+- `AGENT.md` (contexto do projeto pra agentes/Claude) e `CLAUDE.md` (que só importa o
+  `AGENT.md`) existem **só em `develop`** — `promote-to-main.sh` remove os dois antes de abrir o
+  PR de promoção, então `main` fica "limpa".
 
 ### Estratégia de merge dos PRs
 
