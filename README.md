@@ -58,7 +58,10 @@ GitHub — não há workflow de deploy no repo:
   **https://calc-filament-git-develop-davidfdesousas-projects.vercel.app**.
 - As variáveis `VITE_FIREBASE_*` estão cadastradas na Vercel (Production e Preview). Pra mudar:
   `vercel env add <NOME> production --force`.
-- `vercel.json` encaminha `/__/auth/*` e `/__/firebase/*` pro `calc-filament-data.firebaseapp.com`.
+- `vercel.json` encaminha `/__/auth/*` e `/__/firebase/*` pro `calc-filament-data.firebaseapp.com`,
+  e o `VITE_FIREBASE_AUTH_DOMAIN` de produção/develop aponta pro próprio domínio da Vercel. Assim
+  o handler de login roda no mesmo domínio do app — com `firebaseapp.com` o celular bloqueia o
+  `sessionStorage` do handler ("Unable to save initial state"). Detalhes em `AGENT.md`.
 
 Deploy manual, se precisar fora do fluxo automático:
 

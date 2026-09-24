@@ -90,10 +90,21 @@ de venda são **por peça** e não são salvos. Detalhes que pegam:
   `calc-filament.vercel.app`, a URL fixa da `develop` e domínios antigos de túnel (`loca.lt`,
   `trycloudflare.com`). Previews com hash (`calc-filament-xxxx-….vercel.app`) **não** estão —
   login falha neles com `auth/unauthorized-domain` (a tela mostra a mensagem certa).
-- `VITE_FIREBASE_AUTH_DOMAIN` = `calc-filament-data.firebaseapp.com`. `vercel.json` também faz
-  proxy de `/__/auth/*` e `/__/firebase/*` pro firebaseapp.com — só é usado se um dia o
-  authDomain passar a ser o próprio domínio da Vercel (aí também precisa cadastrar
-  `https://<domínio>/__/auth/handler` como redirect URI no OAuth client do Google Cloud).
+- **`authDomain` = o próprio domínio do app**, nunca o `firebaseapp.com` em produção. Com
+  `authDomain` em outro domínio, o handler de login (`/__/auth/handler`) vira terceiro e o
+  celular (Safari iOS, Chrome com storage partitioning, navegadores embutidos) isola o
+  `sessionStorage` dele → erro "Unable to process request due to missing initial state" /
+  "Unable to save initial state" (bug real de 2026-09-23). O `vercel.json` faz proxy de
+  `/__/auth/*` e `/__/firebase/*` pro `calc-filament-data.firebaseapp.com`, então o handler
+  roda no mesmo domínio do app. Valores de `VITE_FIREBASE_AUTH_DOMAIN` na Vercel:
+  - Production → `calc-filament.vercel.app`
+  - Preview (branch `develop`) → `calc-filament-git-develop-davidfdesousas-projects.vercel.app`
+  - Preview (demais branches) e `.env.local` → `calc-filament-data.firebaseapp.com`
+- Cada domínio usado como `authDomain` precisa de `https://<domínio>/__/auth/handler` em
+  Google Cloud Console → APIs & Services → Credentials → "Web client (auto created by Google
+  Service)" → **Authorized redirect URIs** (já cadastrados: firebaseapp.com, produção e
+  develop). Domínio novo (ex. domínio próprio) = redirect URI + Authorized domain no Firebase +
+  env var na Vercel + redeploy.
 - Erros de login viram texto por `authErrorMessage()`; fechar o popup não mostra erro.
 
 ## Variáveis de ambiente
@@ -150,5 +161,8 @@ de venda são **por peça** e não são salvos. Detalhes que pegam:
   do Firebase Hosting); `master` renomeada pra `main`, criada `develop`; semantic-release,
   commitlint e husky no mesmo modelo do ggsetup (releases `v1.0.0` e `v1.0.0-develop.1`); este
   arquivo criado.
+- **2026-09-23** — Login no celular falhava com "Unable to save initial state" (sessionStorage
+  do handler em domínio de terceiro). Corrigido sem mexer no código: `authDomain` passou a ser o
+  domínio da Vercel (proxy do `vercel.json`) + redirect URIs no OAuth client do Google Cloud.
 
 Ao terminar uma rodada de ajustes relevante, adicione uma linha aqui (data + o que mudou e por quê).
