@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          # semantic-release 25.x exige Node ^22.14.0 || >=24.10.0 — 20 falha
+          # com "node version ... is required" antes de rodar qualquer plugin.
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # O build aqui só valida que o código compila (tsc + vite); quem publica
+      # é a integração Git da Vercel, com as variáveis VITE_FIREBASE_* dela.
+      - run: npm run build
+      - run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
