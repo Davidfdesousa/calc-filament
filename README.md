@@ -56,12 +56,9 @@ GitHub — não há workflow de deploy no repo:
 - Push em **`main`** publica em produção: **https://calc-filament.vercel.app**.
 - Push em qualquer outra branch gera uma **Preview Deployment**. A `develop` tem URL fixa:
   **https://calc-filament-git-develop-davidfdesousas-projects.vercel.app**.
-- As variáveis `VITE_FIREBASE_*` estão cadastradas na Vercel (Production e Preview). Pra mudar:
-  `vercel env add <NOME> production --force`.
-- `vercel.json` encaminha `/__/auth/*` e `/__/firebase/*` pro `calc-filament-data.firebaseapp.com`,
-  e o `VITE_FIREBASE_AUTH_DOMAIN` de produção/develop aponta pro próprio domínio da Vercel. Assim
-  o handler de login roda no mesmo domínio do app — com `firebaseapp.com` o celular bloqueia o
-  `sessionStorage` do handler ("Unable to save initial state"). Detalhes em `AGENT.md`.
+- As variáveis `VITE_FIREBASE_*` e `VITE_GOOGLE_CLIENT_ID` (client ID OAuth, público) estão
+  cadastradas na Vercel (Production e Preview). Pra mudar:
+  `vercel env add <NOME> production --type config --force`.
 
 Deploy manual, se precisar fora do fluxo automático:
 
@@ -78,9 +75,11 @@ Authorized domains**. Já estão lá `calc-filament.vercel.app` e a URL fixa da 
 de outras branches (URLs com hash) **não** estão — adicione o domínio se precisar testar login
 num preview específico.
 
-O login usa `signInWithPopup` (funciona em qualquer domínio). `signInWithRedirect` fica só como
-fallback quando o navegador bloqueia o popup, porque o redirect depende de cookies de terceiros
-fora do Firebase Hosting.
+O login usa o **Google Identity Services** (popup do próprio Google) e entrega o token ao
+Firebase com `signInWithCredential` — sem a página `/__/auth/handler` do Firebase, que quebra no
+iPhone ("missing initial state"). Por isso cada origem do app também precisa estar em **Google
+Cloud Console → Credentials → Web client → Authorized JavaScript origins** (dev local: só
+`http://localhost:5173`). Detalhes em `AGENT.md`.
 
 ## Versionamento e changelog (semantic-release)
 

@@ -1,6 +1,6 @@
 import { authErrorMessage, signInWithGoogle } from "../auth";
 
-export function renderLogin(root: HTMLElement, errorMessage?: string): void {
+export function renderLogin(root: HTMLElement): void {
   root.innerHTML = `
     <main class="login-screen">
       <div class="login-card">
@@ -16,7 +16,7 @@ export function renderLogin(root: HTMLElement, errorMessage?: string): void {
           </svg>
           Entrar com Google
         </button>
-        <p class="login-error" id="login-error" ${errorMessage ? "" : "hidden"}>${errorMessage ?? ""}</p>
+        <p class="login-error" id="login-error" hidden></p>
       </div>
     </main>
   `;

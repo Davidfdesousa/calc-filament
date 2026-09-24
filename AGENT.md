@@ -40,11 +40,12 @@ Não há testes, lint nem formatter configurados. **Sempre rode `npm run build` 
 ```
 index.html              → <div id="app"> + /src/main.ts
 src/main.ts             → bootstrap: sem config → tela "Firebase não configurado";
-                          senão checkRedirectResult() → watchAuth() → login ou calculadora
+                          senão watchAuth() → login ou calculadora
 src/firebase.ts         → initializeApp com import.meta.env.VITE_FIREBASE_*; exporta auth, db,
                           googleProvider e firebaseReady
-src/auth.ts             → signInWithGoogle (popup, fallback redirect), signOutUser, watchAuth,
-                          checkRedirectResult, authErrorMessage (código Firebase → texto pt-BR)
+src/auth.ts             → signInWithGoogle (Google Identity Services → signInWithCredential),
+                          signOutUser, watchAuth, authErrorMessage (código → texto pt-BR)
+src/google-identity.d.ts → tipos mínimos do GIS (window.google.accounts.oauth2)
 src/calculator.ts       → calcular(): lógica PURA do custo (sem DOM, sem Firebase)
 src/settingsStore.ts    → loadSettings/saveSettings em users/{uid}/config/settings
 src/views/login.ts      → tela de login
@@ -82,30 +83,44 @@ de venda são **por peça** e não são salvos. Detalhes que pegam:
 
 ## Autenticação — GOTCHAS (não repetir bugs antigos)
 
-- **Use `signInWithPopup`**. `signInWithRedirect` quebra fora do Firebase Hosting (bloqueio de
-  cookies de terceiros no Chrome/Safari: volta do Google sem usuário logado). O redirect só entra
-  como fallback quando o popup é bloqueado (`auth/popup-blocked`).
-- **Todo domínio novo** onde o login precisa funcionar tem que entrar em Firebase Console →
-  Authentication → Settings → **Authorized domains**. Hoje: `localhost`,
-  `calc-filament.vercel.app`, a URL fixa da `develop` e domínios antigos de túnel (`loca.lt`,
-  `trycloudflare.com`). Previews com hash (`calc-filament-xxxx-….vercel.app`) **não** estão —
-  login falha neles com `auth/unauthorized-domain` (a tela mostra a mensagem certa).
-- **`authDomain` = o próprio domínio do app**, nunca o `firebaseapp.com` em produção. Com
-  `authDomain` em outro domínio, o handler de login (`/__/auth/handler`) vira terceiro e o
-  celular (Safari iOS, Chrome com storage partitioning, navegadores embutidos) isola o
-  `sessionStorage` dele → erro "Unable to process request due to missing initial state" /
-  "Unable to save initial state" (bug real de 2026-09-23). O `vercel.json` faz proxy de
-  `/__/auth/*` e `/__/firebase/*` pro `calc-filament-data.firebaseapp.com`, então o handler
-  roda no mesmo domínio do app. Valores de `VITE_FIREBASE_AUTH_DOMAIN` na Vercel:
-  - Production → `calc-filament.vercel.app`
-  - Preview (branch `develop`) → `calc-filament-git-develop-davidfdesousas-projects.vercel.app`
-  - Preview (demais branches) e `.env.local` → `calc-filament-data.firebaseapp.com`
-- Cada domínio usado como `authDomain` precisa de `https://<domínio>/__/auth/handler` em
-  Google Cloud Console → APIs & Services → Credentials → "Web client (auto created by Google
-  Service)" → **Authorized redirect URIs** (já cadastrados: firebaseapp.com, produção e
-  develop). Domínio novo (ex. domínio próprio) = redirect URI + Authorized domain no Firebase +
-  env var na Vercel + redeploy.
-- Erros de login viram texto por `authErrorMessage()`; fechar o popup não mostra erro.
+**Como funciona hoje**: `index.html` carrega o Google Identity Services
+(`https://accounts.google.com/gsi/client`). No clique, `signInWithGoogle()` cria um token client
+(`initTokenClient`, client ID em `VITE_GOOGLE_CLIENT_ID`), abre o popup do Google com
+`requestAccessToken()` e entrega o access token ao Firebase com
+`signInWithCredential(GoogleAuthProvider.credential(null, token))`. O Firebase **não** abre popup
+nem redirect próprio — só se o script do Google não carregar (bloqueador), aí cai em
+`signInWithPopup` do Firebase como fallback.
+
+Por que não usar `signInWithPopup`/`signInWithRedirect` do Firebase (bug real de 2026-09-23):
+
+- Os dois passam pela página `/__/auth/handler`, que guarda estado em `sessionStorage`. No
+  iPhone (todo navegador é WebKit, inclusive o Chrome) esse storage é particionado/perdido e o
+  login falha com **"Unable to process request due to missing initial state"**. Aconteceu com
+  `authDomain` no `firebaseapp.com` **e também** com `authDomain` no domínio da Vercel via proxy
+  (`vercel.json`) — a doc do Firebase só garante o proxy no Chrome desktop/Firefox. O GIS não usa
+  o handler, então não depende disso (é a "opção 5" de
+  https://firebase.google.com/docs/auth/web/redirect-best-practices).
+- `requestAccessToken()` tem que rodar **síncrono dentro do clique** (nada de `await` antes),
+  senão o navegador bloqueia o popup (`gis/popup_failed_to_open` → mensagem pedindo pra
+  permitir pop-ups).
+
+Configuração que precisa existir pra cada origem nova (ex. domínio próprio):
+
+1. Google Cloud Console → APIs & Services → Credentials → "Web client (auto created by Google
+   Service)" → **Authorized JavaScript origins**. Hoje: `http://localhost`,
+   `http://localhost:5000`, `http://localhost:5173`, firebaseapp.com, web.app,
+   `https://calc-filament.vercel.app` e a URL fixa da `develop`. Origem faltando = popup do
+   Google com erro `origin_mismatch`. **Dev local só funciona na porta 5173.**
+2. Firebase Console → Authentication → Settings → **Authorized domains** (usado pelo fallback do
+   Firebase). Previews com hash (`calc-filament-xxxx-….vercel.app`) não estão em nenhum dos dois
+   → login não funciona neles.
+
+Resquícios da tentativa anterior, inofensivos: `vercel.json` faz proxy de `/__/auth/*` pro
+firebaseapp.com, `VITE_FIREBASE_AUTH_DOMAIN` na Vercel aponta pro próprio domínio (produção e
+develop) e os redirect URIs `https://<domínio>/__/auth/handler` estão cadastrados no OAuth client.
+Só importam pro fallback `signInWithPopup`.
+
+Erros de login viram texto por `authErrorMessage()`; fechar o popup não mostra erro.
 
 ## Variáveis de ambiente
 
@@ -113,6 +128,8 @@ de venda são **por peça** e não são salvos. Detalhes que pegam:
 - Vercel: as 6 `VITE_FIREBASE_*` estão em **Production e Preview**, tipo `config`. A API key
   web do Firebase é pública por natureza (vai no bundle) — a CLI da Vercel pergunta, e a resposta
   é `--type config`, nunca renomear pra tirar o prefixo `VITE_`.
+- `VITE_GOOGLE_CLIENT_ID` (client ID do OAuth "Web client", público) também está em Production e
+  Preview.
 - Variável nova: adicionar em `.env.example`, `src/vite-env.d.ts` e na Vercel:
   `npx vercel env add NOME production --type config --value "..." --yes` (repita pra `preview`).
   Vite embute no build → precisa de novo deploy pra valer.
@@ -161,8 +178,9 @@ de venda são **por peça** e não são salvos. Detalhes que pegam:
   do Firebase Hosting); `master` renomeada pra `main`, criada `develop`; semantic-release,
   commitlint e husky no mesmo modelo do ggsetup (releases `v1.0.0` e `v1.0.0-develop.1`); este
   arquivo criado.
-- **2026-09-23** — Login no celular falhava com "Unable to save initial state" (sessionStorage
-  do handler em domínio de terceiro). Corrigido sem mexer no código: `authDomain` passou a ser o
-  domínio da Vercel (proxy do `vercel.json`) + redirect URIs no OAuth client do Google Cloud.
+- **2026-09-23** — Login no iPhone (Chrome/WebKit) falhava com "missing initial state". 1ª
+  tentativa: `authDomain` no domínio da Vercel via proxy — não resolveu. Solução: login pelo
+  Google Identity Services + `signInWithCredential`, sem o handler do Firebase; removido o
+  fluxo de redirect (`checkRedirectResult`).
 
 Ao terminar uma rodada de ajustes relevante, adicione uma linha aqui (data + o que mudou e por quê).
