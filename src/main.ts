@@ -1,6 +1,6 @@
 import "./style.css";
 import { firebaseReady } from "./firebase";
-import { watchAuth, type User } from "./auth";
+import { authErrorMessage, checkRedirectResult, watchAuth, type User } from "./auth";
 import { renderLogin } from "./views/login";
 import { renderCalculator } from "./views/calculator";
 
@@ -26,11 +26,20 @@ if (!firebaseReady) {
   renderSetupNeeded();
 } else {
   renderLoading();
-  watchAuth((user: User | null) => {
-    if (user) {
-      void renderCalculator(root, user);
-    } else {
-      renderLogin(root);
-    }
-  });
+
+  let redirectError: string | undefined;
+  checkRedirectResult()
+    .catch((err) => {
+      redirectError = authErrorMessage(err);
+      console.error(err);
+    })
+    .finally(() => {
+      watchAuth((user: User | null) => {
+        if (user) {
+          void renderCalculator(root, user);
+        } else {
+          renderLogin(root, redirectError);
+        }
+      });
+    });
 }

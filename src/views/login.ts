@@ -1,6 +1,6 @@
-import { signInWithGoogle } from "../auth";
+import { authErrorMessage, signInWithGoogle } from "../auth";
 
-export function renderLogin(root: HTMLElement): void {
+export function renderLogin(root: HTMLElement, errorMessage?: string): void {
   root.innerHTML = `
     <main class="login-screen">
       <div class="login-card">
@@ -16,7 +16,7 @@ export function renderLogin(root: HTMLElement): void {
           </svg>
           Entrar com Google
         </button>
-        <p class="login-error" id="login-error" hidden></p>
+        <p class="login-error" id="login-error" ${errorMessage ? "" : "hidden"}>${errorMessage ?? ""}</p>
       </div>
     </main>
   `;
@@ -30,8 +30,11 @@ export function renderLogin(root: HTMLElement): void {
     try {
       await signInWithGoogle();
     } catch (err) {
-      errorEl.textContent = "Não foi possível entrar. Tente novamente.";
-      errorEl.hidden = false;
+      const message = authErrorMessage(err);
+      if (message) {
+        errorEl.textContent = message;
+        errorEl.hidden = false;
+      }
       console.error(err);
     } finally {
       button.disabled = false;
